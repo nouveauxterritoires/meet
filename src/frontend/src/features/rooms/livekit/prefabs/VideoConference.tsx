@@ -37,6 +37,8 @@ import { Subtitles } from '@/features/subtitle/component/Subtitles'
 import { CarouselLayout } from '../components/layout/CarouselLayout'
 import { GridLayout } from '../components/layout/GridLayout'
 import { IsIdleDisconnectModal } from '../components/IsIdleDisconnectModal'
+import { RoomPiP } from '../components/RoomPiP'
+import { RoomPiPProvider } from '../hooks/RoomPiPProvider'
 
 const LayoutWrapper = styled(
   'div',
@@ -184,10 +186,11 @@ export function VideoConference({ ...props }: VideoConferenceProps) {
       }}
     >
       {isWeb() && (
-        <LayoutContextProvider
-          value={layoutContext}
-          // onPinChange={handleFocusStateChange}
-        >
+        <RoomPiPProvider>
+          <LayoutContextProvider
+            value={layoutContext}
+            // onPinChange={handleFocusStateChange}
+          >
           <ScreenShareErrorModal
             isOpen={isShareErrorVisible}
             onClose={() => setIsShareErrorVisible(false)}
@@ -257,7 +260,9 @@ export function VideoConference({ ...props }: VideoConferenceProps) {
             }}
           />
           <SidePanel />
-        </LayoutContextProvider>
+          <RoomPiP />
+          </LayoutContextProvider>
+        </RoomPiPProvider>
       )}
       <RoomAudioRenderer />
       <ConnectionStateToast />
