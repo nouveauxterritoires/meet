@@ -56,7 +56,8 @@ export const VisualOnlyTooltip = ({
       >
         {children}
       </div>
-      {tooltipData && portalContainer &&
+      {tooltipData &&
+        portalContainer &&
         createPortal(
           <div
             aria-hidden="true"
