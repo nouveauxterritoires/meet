@@ -8,6 +8,8 @@ export type VisualOnlyTooltipProps = {
   tooltip: string
 }
 
+const TOOLTIP_VERTICAL_OFFSET_PX = 8
+
 /**
  * Wrapper component that displays a tooltip visually only (not announced by screen readers).
  *
@@ -30,7 +32,7 @@ export const VisualOnlyTooltip = ({
     if (!wrapperRef.current) return null
     const rect = wrapperRef.current.getBoundingClientRect()
     return {
-      top: rect.top - 4,
+      top: rect.top - TOOLTIP_VERTICAL_OFFSET_PX,
       left: rect.left + rect.width / 2,
     }
   }
