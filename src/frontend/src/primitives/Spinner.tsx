@@ -1,5 +1,11 @@
 import { ProgressBar } from 'react-aria-components'
-import { css } from '@/styled-system/css'
+import { css, cx } from '@/styled-system/css'
+
+const rotatingArcClassName = css({
+  animation: 'rotate 1s ease-in-out infinite',
+  transformOrigin: 'center',
+  transition: 'transform 16ms linear',
+})
 
 export const Spinner = ({
   size = 56,
@@ -44,23 +50,24 @@ export const Spinner = ({
               className={css({
                 stroke: variant == 'light' ? 'primary.100' : 'transparent',
               })}
-              style={{}}
             />
             <circle
               cx={center}
               cy={center}
               r={r}
               strokeDasharray={`${c} ${c}`}
-              strokeDashoffset={percentage && c - (percentage / 100) * c}
+              strokeDashoffset={
+                typeof percentage === 'number'
+                  ? c - (percentage / 100) * c
+                  : undefined
+              }
               strokeLinecap="round"
-              className={css({
-                stroke: variant == 'light' ? 'primary.800' : 'white',
-              })}
-              style={{
-                animation: `rotate 1s ease-in-out infinite`,
-                transformOrigin: 'center',
-                transition: 'transform 16ms linear',
-              }}
+              className={cx(
+                rotatingArcClassName,
+                css({
+                  stroke: variant == 'light' ? 'primary.800' : 'white',
+                })
+              )}
             />
           </svg>
           <span
