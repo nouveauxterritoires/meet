@@ -1,0 +1,105 @@
+# Exemples de configuration crontab pour La Suite Meet
+#
+# Pour installer ces tâches :
+# 1. Modifiez les chemins pour correspondre à votre installation
+# 2. Copiez les lignes souhaitées dans votre crontab : crontab -e
+#
+# Format crontab :
+# ┌───────────── minute (0 - 59)
+# │ ┌───────────── heure (0 - 23)
+# │ │ ┌───────────── jour du mois (1 - 31)
+# │ │ │ ┌───────────── mois (1 - 12)
+# │ │ │ │ ┌───────────── jour de la semaine (0 - 6) (Dimanche = 0)
+# │ │ │ │ │
+# * * * * * commande à exécuter
+
+# Répertoire de votre installation Meet
+MEET_DIR="/opt/meet"
+
+# ============================================
+# MAINTENANCE QUOTIDIENNE
+# ============================================
+
+# Backup quotidien à 2h du matin
+0 2 * * * cd $MEET_DIR && ./maintenance.sh --backup-only >> logs/maintenance-backup.log 2>&1
+
+# Maintenance complète quotidienne à 3h du matin (backup + nettoyage + vérifications)
+0 3 * * * cd $MEET_DIR && ./maintenance.sh >> logs/maintenance-daily.log 2>&1
+
+# Nettoyage uniquement tous les dimanches à 4h
+0 4 * * 0 cd $MEET_DIR && ./maintenance.sh --clean-only >> logs/maintenance-cleanup.log 2>&1
+
+# ============================================
+# VÉRIFICATIONS
+# ============================================
+
+# Vérifier l'état des services toutes les heures
+0 * * * * cd $MEET_DIR && docker compose ps | grep -q "Up" || echo "ALERTE: Services Meet down!" | mail -s "Meet Alert" admin@example.com
+
+# Monitoring de l'espace disque toutes les 4 heures
+0 */4 * * * cd $MEET_DIR && df -h . | awk 'NR==2 {if (int($5) > 80) print "ALERTE: Disque à "$5}' | mail -s "Disk Alert" admin@example.com
+
+# ============================================
+# LOGS
+# ============================================
+
+# Rotation des logs Docker tous les jours à 1h
+0 1 * * * cd $MEET_DIR && docker compose logs --tail=1000 > logs/docker-$(date +\%Y\%m\%d).log 2>&1
+
+# Compresser les anciens logs tous les lundis
+0 5 * * 1 cd $MEET_DIR && find logs/ -name "*.log" -mtime +7 -exec gzip {} \;
+
+# ============================================
+# BACKUPS
+# ============================================
+
+# Backup hebdomadaire supplémentaire le dimanche à minuit
+0 0 * * 0 cd $MEET_DIR && ./maintenance.sh --backup-only >> logs/maintenance-weekly.log 2>&1
+
+# Copier les backups vers un serveur distant tous les jours à 5h
+# (nécessite une configuration SSH sans mot de passe)
+# 0 5 * * * rsync -avz --delete $MEET_DIR/backups/ user@backup-server:/backups/meet/
+
+# ============================================
+# MISES À JOUR (OPTIONNEL - À UTILISER AVEC PRÉCAUTION)
+# ============================================
+
+# Mise à jour automatique tous les premiers dimanches du mois à 2h
+# ATTENTION: Testez d'abord manuellement avant d'activer !
+# 0 2 1-7 * 0 cd $MEET_DIR && ./update-meet.sh >> logs/auto-update.log 2>&1
+
+# ============================================
+# VARIABLES D'ENVIRONNEMENT UTILES
+# ============================================
+
+# Définir des variables d'environnement pour les scripts
+# COMPOSE_FILE=/opt/meet/docker-compose.prod.yaml
+# BACKUP_DIR=/data/backups/meet
+# LOG_DIR=/var/log/meet
+# MAX_BACKUPS=30
+# MAX_LOGS=90
+
+# ============================================
+# EXEMPLES DE NOTIFICATIONS
+# ============================================
+
+# Envoyer un rapport hebdomadaire par email
+# 0 8 * * 1 cd $MEET_DIR && { echo "Rapport Meet - $(date)"; docker compose ps; docker system df; ls -lh backups/ | tail -5; } | mail -s "Rapport Meet hebdomadaire" admin@example.com
+
+# Notification Slack en cas d'échec
+# 0 3 * * * cd $MEET_DIR && ./maintenance.sh || curl -X POST -H 'Content-type: application/json' --data '{"text":"❌ Maintenance Meet échouée"}' YOUR_SLACK_WEBHOOK_URL
+
+# ============================================
+# NOTES IMPORTANTES
+# ============================================
+
+# 1. Testez toujours vos commandes manuellement avant de les mettre dans cron
+# 2. Utilisez des chemins absolus (pas de ~/)
+# 3. Redirigez stdout et stderr vers des fichiers de log
+# 4. Considérez l'utilisation de lockfiles pour éviter les exécutions simultanées
+# 5. Surveillez vos logs cron : tail -f /var/log/syslog | grep CRON
+# 6. Les emails cron nécessitent un MTA configuré (postfix, sendmail, etc.)
+
+# Pour voir vos tâches cron actuelles : crontab -l
+# Pour éditer : crontab -e
+# Pour voir les logs : grep CRON /var/log/syslog

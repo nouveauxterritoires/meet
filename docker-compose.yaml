@@ -1,0 +1,143 @@
+version: '3.8'
+
+# La Suite Meet - Production Deployment
+# Compatible avec les outils de gestion de serveur (Private Repository with Deploy Key)
+
+services:
+  postgresql:
+    image: postgres:16
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+    env_file:
+      - .env.postgresql
+      - .env.common
+    volumes:
+      - ./data/postgresql:/var/lib/postgresql/data
+    networks:
+      - meet-internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - meet-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+
+  backend:
+    image: lasuite/meet-backend:latest
+    restart: unless-stopped
+    user: ${DOCKER_USER:-1000}
+    env_file:
+      - .env.common
+      - .env.postgresql
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check"]
+      interval: 15s
+      timeout: 30s
+      retries: 20
+      start_period: 30s
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+    networks:
+      - meet-internal
+    labels:
+      - "meet.component=backend"
+
+  celery:
+    image: lasuite/meet-backend:latest
+    restart: unless-stopped
+    user: ${DOCKER_USER:-1000}
+    command: ["celery", "-A", "meet.celery_app", "worker", "-l", "INFO"]
+    env_file:
+      - .env.common
+      - .env.postgresql
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - meet-internal
+    labels:
+      - "meet.component=celery-worker"
+
+  frontend:
+    image: lasuite/meet-frontend:latest
+    restart: unless-stopped
+    user: "${DOCKER_USER:-1000}"
+    entrypoint:
+      - /docker-entrypoint.sh
+    command: ["nginx", "-g", "daemon off;"]
+    env_file:
+      - .env.common
+    environment:
+      # Configuration pour reverse proxy (Caddy, Traefik, nginx-proxy, etc.)
+      - VIRTUAL_HOST=${MEET_HOST}
+      - VIRTUAL_PORT=8083
+      - LETSENCRYPT_HOST=${MEET_HOST}
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/docs.conf.template:ro
+    networks:
+      - meet-internal
+      - meet-public
+    labels:
+      - "meet.component=frontend"
+      - "traefik.enable=true"
+      - "traefik.http.routers.meet.rule=Host(`${MEET_HOST}`)"
+      - "traefik.http.services.meet.loadbalancer.server.port=8083"
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    command: --config /config.yaml
+    ports:
+      # Ports exposés pour WebRTC
+      - "7881:7881/tcp"   # WebRTC ICE over TCP
+      - "7882:7882/udp"   # WebRTC multiplexing over UDP
+    volumes:
+      - ./livekit/livekit-server.yaml:/config.yaml:ro
+    environment:
+      - VIRTUAL_HOST=${LIVEKIT_HOST}
+      - VIRTUAL_PORT=7880
+      - LETSENCRYPT_HOST=${LIVEKIT_HOST}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - meet-internal
+      - meet-public
+    labels:
+      - "meet.component=livekit"
+      - "traefik.enable=true"
+      - "traefik.http.routers.livekit.rule=Host(`${LIVEKIT_HOST}`)"
+      - "traefik.http.services.livekit.loadbalancer.server.port=7880"
+
+networks:
+  meet-internal:
+    driver: bridge
+    internal: true
+  meet-public:
+    driver: bridge
+
+volumes:
+  postgresql_data:
+  redis_data:

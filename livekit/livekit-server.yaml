@@ -1,0 +1,38 @@
+# Livekit Server Configuration
+# Documentation: https://docs.livekit.io/home/self-hosting/deployment/
+
+port: 7880
+
+# Redis configuration for distributed setup
+redis:
+  address: redis:6379
+
+# API Keys - Doit correspondre à LIVEKIT_API_KEY et LIVEKIT_API_SECRET
+# IMPORTANT: Remplacer <LIVEKIT_API_SECRET> par la même valeur que dans .env.common
+keys:
+  meet: <LIVEKIT_API_SECRET>
+
+# WebRTC configuration
+rtc:
+  # Multiplexing UDP sur un seul port pour simplifier le firewall
+  # Pour de meilleures performances, utiliser une plage de ports (commenté ci-dessous)
+  udp_port: 7882
+  
+  # WebRTC ICE over TCP (fallback quand UDP n'est pas disponible)
+  # Ce port ne doit PAS être derrière un load balancer ou TLS
+  # Les transports WebRTC sont déjà chiffrés
+  tcp_port: 7881
+  
+  # use_external_ip doit être true pour les environnements cloud
+  # où l'hôte a une IP publique mais n'est pas exposé au processus
+  # LiveKit utilisera STUN pour découvrir la vraie IP
+  use_external_ip: true
+  
+  # Pour de meilleures performances, décommenter et ajuster selon le nombre de vCPUs:
+  # port_range_start: 50000
+  # port_range_end: 60000  # Range égale ou supérieure au nombre de vCPUs
+
+# Logging
+logging:
+  level: info
+  # Pour debug: level: debug
