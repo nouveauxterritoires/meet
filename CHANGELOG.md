@@ -18,6 +18,7 @@ and this project adheres to
 - 🔒️(frontend) uninstall curl from the frontend production image #987
 - 💄(frontend) add focus ring to reaction emoji buttons
 - ✨(frontend) introduce a shortcut settings tab #975
+- ♻️(frontend) use react aria toolbar for arrow key navigation #1005
 
 ## [1.8.0] - 2026-02-20
 
